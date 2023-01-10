@@ -29,17 +29,13 @@ public:
 	void insert(const K &key_begin, const K &key_end, const V &value)
 	{
 		if (key_begin < key_end) {
-			auto it_begin_erase = std::map<K,V>::lower_bound(key_begin);
-
 			// Step 1.1: define the end element value
-			auto it_end_erase = it_begin_erase;
-			while (it_end_erase != std::map<K,V>::end() && (key_end >= it_end_erase->first)) {
-				it_end_erase++;
-			}
+			auto it_end_erase = std::map<K,V>::upper_bound(key_end);
 			auto it_after_value = it_end_erase;
 			const auto after_value = (it_after_value == std::map<K,V>::begin())? default_value : (--it_after_value)->second;
 
 			// Step 2: define and insert the begin element
+			auto it_begin_erase = std::map<K,V>::lower_bound(key_begin);
 			auto it_before_value = it_begin_erase;
 			const auto &before_value = (it_before_value == std::map<K,V>::begin())? default_value : (--it_before_value)->second;
 			if (before_value != value) {
@@ -47,7 +43,7 @@ public:
 				it_begin_erase++;
 			}
 
-			// Step 1.2: shift the hunt for the end element insertion
+			// Step 1.2: shift the hint for the end element insertion
 			it_after_value = it_begin_erase;
 			it_after_value--;
 
