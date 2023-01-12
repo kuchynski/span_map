@@ -15,11 +15,14 @@ class span_map: protected std::map<K,V>
 private:
 	const static V default_element;
 
+	const V& previous_element(auto it) const {
+		return it == std::map<K,V>::begin()? default_element : (--it)->second;
+	}
+
 public:
 	const V& operator[](const K &key) const
 	{
-		auto it_find = std::map<K,V>::upper_bound(key);
-		return (it_find == std::map<K,V>::begin())? default_element : (--it_find)->second;
+		return previous_element(std::map<K,V>::upper_bound(key));
 	}
 
 	size_t size() const { return std::map<K,V>::size(); }
@@ -29,40 +32,34 @@ public:
 	void insert(const K &key_begin, const K &key_end, const V &value)
 	{
 		if (key_begin < key_end) {
-			// Step 1.1: define the end element value
-			auto it_end_erase = std::map<K,V>::upper_bound(key_end);
-			auto it_after_value = it_end_erase;
-			const auto after_value = (it_after_value == std::map<K,V>::begin())? default_value : (--it_after_value)->second;
+			auto it_begin_range = std::map<K,V>::lower_bound(key_begin);
+			const auto it_end_range = std::map<K,V>::upper_bound(key_end);
 
-			// Step 2: define and insert the begin element
-			auto it_begin_erase = std::map<K,V>::lower_bound(key_begin);
-			auto it_before_value = it_begin_erase;
-			const auto &before_value = (it_before_value == std::map<K,V>::begin())? default_value : (--it_before_value)->second;
-			if (before_value != value) {
-				it_begin_erase = std::map<K,V>::insert_or_assign(it_begin_erase, key_begin, value);
-				it_begin_erase++;
+			// Step 3.1: define and save the end element value
+			const auto after_value = previous_element(it_end_range);
+
+			// Step 1: define and insert the begin element
+			if (previous_element(it_begin_range) != value) {
+				it_begin_range = std::map<K,V>::insert_or_assign(it_begin_range, key_begin, value);
+				it_begin_range++;
 			}
 
-			// Step 1.2: shift the hint for the end element insertion
-			it_after_value = it_begin_erase;
-			it_after_value--;
+			// Step 2: Erase everything inside the new range
+			std::map<K,V>::erase(it_begin_range, it_end_range);
 
-			// Step 3: Erase everything inside the new range
-			std::map<K,V>::erase(it_begin_erase, it_end_erase);
-
-			// Step 1.3: Insert end element
+			// Step 3.2: Insert the end element
 			if (after_value != value) {
-				std::map<K,V>::insert_or_assign(it_after_value, key_end, after_value);
+				std::map<K,V>::insert_or_assign(it_end_range, key_end, after_value);
 			}
 		}
 	}
 
 	void change_range(const K &key, const V &value)
 	{
-		auto it_erase = std::map<K,V>::upper_bound(key);
+		auto it_find = std::map<K,V>::upper_bound(key);
 
-		if (it_erase != std::map<K,V>::begin()) {
-			(--it_erase)->second = value;
+		if (it_find != std::map<K,V>::begin()) {
+			(--it_find)->second = value;
 		}
 	}
 
@@ -78,10 +75,9 @@ public:
 
 	bool range(int number, std::pair<K,K> &key_pair)
 	{
-		int ranges_number = size() - 1;
+		const int ranges_number = size() - 1;
 		
 		if (ranges_number > 0) {
-			auto it_find = std::map<K,V>::begin();
 			if (number < 0)
 				number = ranges_number - 1;
 			
@@ -112,7 +108,6 @@ public:
 	bool start_key(int number, K& key) const // get begin of the rang number 'number'
 	{
 		if (!empty()) {
-			auto it_find = std::map<K,V>::begin();
 			if (number < 0)
 				number = size() - 1;
 			
@@ -129,6 +124,6 @@ public:
 };
 
 template<typename K, typename V, V default_value>
-const V span_map<K, V, default_value>::default_element{default_value};
+constexpr V span_map<K, V, default_value>::default_element{default_value};
 
 #endif
